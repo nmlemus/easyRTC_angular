@@ -135,7 +135,7 @@ function convertListToButtons(roomName, occupants, isPrimary) {
                 case "working":
                     statusDiv.innerHTML = state.name + ":" + state.position + "/" + state.size + "(" + state.numFiles + " files)";
                     break;
-                case "cancelled":
+                case "rejected":
                     statusDiv.innerHTML = "cancelled";
                     setTimeout(function() {
                         statusDiv.innerHTML = "";
@@ -250,6 +250,8 @@ function acceptRejectCB(otherGuy, fileNameList, wasAccepted) {
 
 function receiveStatusCB(otherGuy, msg) {
     var receiveBlock = document.getElementById(buildReceiveAreaName(otherGuy));
+    if( !receiveBlock) return;
+
     switch (msg.status) {
         case "started":
             break;
@@ -257,7 +259,7 @@ function receiveStatusCB(otherGuy, msg) {
             receiveBlock.innerHTML = "Finished file";
             break;
         case "done":
-            receiveBlock.innerHTML = "Stopped because " + msg.reason;
+            receiveBlock.innerHTML = "Stopped because " +msg.reason;
             setTimeout(function() {
                 receiveBlock.style.display = "none";
             }, 1000);

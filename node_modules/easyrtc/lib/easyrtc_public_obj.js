@@ -75,6 +75,30 @@ pub.getAppWithEasyrtcid = function(easyrtcid, callback) {
 
 
 /**
+ * Sends the count of the number of connections to the server to a provided callback.
+ *
+ * @param       {function(?Error, Integer)} callback Callback with error and array containing all easyrtcids.
+ */
+pub.getConnectionCount = function(callback) {
+    callback(null, pub.getConnectionCountSync());
+};
+
+
+/**
+ * Sends the count of the number of connections to the server to a provided callback.
+ *
+ * @returns     {Integer} The current number of connections in a room.
+ */
+pub.getConnectionCountSync = function() {
+    var connectionCount = 0;
+    for (var key in e.app) {
+        connectionCount = connectionCount + _.size(e.app[key].connection);
+    }
+    return connectionCount;
+};
+
+
+/**
  * Gets connection object for connection which has an authenticated client with a given easyrtcid
  *
  * @param       {string} easyrtcid      EasyRTC unique identifier for a socket connection.
@@ -1145,6 +1169,28 @@ pub.app = function(appName, callback) {
 
 
     /**
+     * Sends the count of the number of connections in the app to a provided callback.
+     *
+     * @memberof    pub.appObj
+     * @param       {function(?Error, Integer)} callback Callback with error and array containing all easyrtcids.
+     */
+    appObj.getConnectionCount = function(callback) {
+        callback(null, appObj.getConnectionCountSync());
+    };
+
+
+    /**
+     * Sends the count of the number of connections in the app to a provided callback.
+     *
+     * @memberof    pub.appObj
+     * @returns     {Integer} The current number of connections in a room.
+     */
+    appObj.getConnectionCountSync = function() {
+        return _.size(e.app[appName].connection);
+    };
+
+
+    /**
      * Returns an array of all easyrtcids connected to the application
      *
      * @memberof    pub.appObj
@@ -1380,15 +1426,38 @@ pub.app = function(appName, callback) {
             callback(new pub.util.ConnectionWarning("Attempt to request non-existent connection key: '" + easyrtcid + "'"));
             return;
         }
-        if (!pub.socketServer || !pub.socketServer.sockets.sockets[easyrtcid] || pub.socketServer.sockets.sockets[easyrtcid].disconnected) {
-            pub.util.logWarning("Attempt to request non-existent socket: '" + easyrtcid + "'");
+
+        if (!pub.socketServer) {
+            pub.util.logError("Socket server undefined.");
             callback(new pub.util.ConnectionWarning("Attempt to request non-existent socket: '" + easyrtcid + "'"));
             return;
         }
-        if (pub.socketServer.sockets.sockets[easyrtcid].disconnected) {
-            pub.util.logWarning("Attempt to request disconnected socket: '" + easyrtcid + "'");
-            callback(new pub.util.ConnectionWarning("Attempt to request disconnected socket: '" + easyrtcid + "'"));
-            return;
+
+        if (pub.socketServer.sockets.connected){
+            if (!pub.socketServer.sockets.connected[easyrtcid] || pub.socketServer.sockets.connected[easyrtcid].disconnected) {
+                pub.util.logWarning("Attempt to request non-existent socket: '" + easyrtcid + "'");
+                callback(new pub.util.ConnectionWarning("Attempt to request non-existent socket: '" + easyrtcid + "'"));
+                return;
+            }
+
+            if (pub.socketServer.sockets.connected[easyrtcid].disconnected) {
+                pub.util.logWarning("Attempt to request disconnected socket: '" + easyrtcid + "'");
+                callback(new pub.util.ConnectionWarning("Attempt to request disconnected socket: '" + easyrtcid + "'"));
+                return;
+            }
+        }
+        else {
+            if (!pub.socketServer.sockets.sockets[easyrtcid] || pub.socketServer.sockets.sockets[easyrtcid].disconnected) {
+                pub.util.logWarning("Attempt to request non-existent socket: '" + easyrtcid + "'");
+                callback(new pub.util.ConnectionWarning("Attempt to request non-existent socket: '" + easyrtcid + "'"));
+                return;
+            }
+
+            if (pub.socketServer.sockets.sockets[easyrtcid].disconnected) {
+                pub.util.logWarning("Attempt to request disconnected socket: '" + easyrtcid + "'");
+                callback(new pub.util.ConnectionWarning("Attempt to request disconnected socket: '" + easyrtcid + "'"));
+                return;
+            }
         }
 
 
@@ -1422,7 +1491,13 @@ pub.app = function(appName, callback) {
          *
          * @memberof    pub.appObj.connectionObj
          */
-        connectionObj.socket = pub.socketServer.sockets.sockets[easyrtcid];
+        if (pub.socketServer.sockets.connected){
+            connectionObj.socket = pub.socketServer.sockets.connected[easyrtcid];
+        }
+        else {
+            connectionObj.socket = pub.socketServer.sockets.sockets[easyrtcid];
+        }
+
 
         /**
          * Returns the application object to which the connection belongs. Note that unlike most EasyRTC functions, this returns a value and does not use a callback.
@@ -2922,6 +2997,37 @@ pub.app = function(appName, callback) {
             };
 
             next(null);
+        };
+
+
+        /**
+         * Sends the count of the number of connections in a room to a provided callback.
+         *
+         * @memberof    pub.appObj.roomObj
+         * @param       {function(?Error, Integer)} callback Callback with error and array containing all easyrtcids.
+         */
+        roomObj.getConnectionCount = function(callback) {
+            if (!appObj.isRoomSync(roomName)) {
+                pub.util.logWarning("Attempt to request non-existent room name: '" + roomName + "'");
+                callback(new pub.util.ApplicationWarning("Attempt to request non-existent room name: '" + roomName + "'"));
+                return;
+            }
+            callback(null, roomObj.getConnectionCountSync());
+        };
+
+
+        /**
+         * Sends the count of the number of connections in a room to a provided callback. Returns 0 if room doesn't exist.
+         *
+         * @memberof    pub.appObj.roomObj
+         * @returns     {Integer} The current number of connections in a room.
+         */
+        roomObj.getConnectionCountSync = function() {
+            if (!appObj.isRoomSync(roomName)) {
+                pub.util.logWarning("Attempt to request non-existent room name: '" + roomName + "'");
+                return 0;
+            }
+            return _.size(e.app[appName].room[roomName].clientList);
         };
 
 
